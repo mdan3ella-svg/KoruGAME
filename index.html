@@ -27,6 +27,8 @@
         button:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 0 25px rgba(99, 102, 241, 0.8); }
         
         .char-btn.selected { background: linear-gradient(45deg, #312e81, #4f46e5); border-color: #818cf8; }
+        
+        footer { pointer-events: none; text-align: center; color: #64748b; font-size: 0.75rem; letter-spacing: 0.1em; padding-bottom: 1rem; }
     </style>
 </head>
 <body>
@@ -42,10 +44,6 @@
                     <div class="text-[10px] text-cyan-200 tracking-widest uppercase">Armor Integrity</div>
                     <div class="hud-bar-container"><div id="health-bar" class="hud-bar health-bar" style="width: 100%;"></div></div>
                 </div>
-                <div class="mt-4">
-                    <div class="text-[10px] text-purple-200 tracking-widest uppercase">Neural Link</div>
-                    <div class="hud-bar-container"><div id="neural-bar" class="hud-bar neural-bar" style="width: 100%;"></div></div>
-                </div>
             </div>
             <div class="text-right">
                 <div class="text-sm text-gray-400 font-mono" id="level-display">SECTOR: SURFACE</div>
@@ -53,101 +51,96 @@
                 <div class="text-xl font-mono mt-2 text-red-500 font-bold" id="timer-display">TIME: --</div>
             </div>
         </div>
+        <footer>Created By Daniel Martins | VertaScan3D | 2026 Copyright</footer>
     </div>
 
     <div id="start-screen">
         <h1 class="text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 tracking-tighter">KORU</h1>
         <p class="text-gray-400 mb-8 font-mono tracking-widest">CYBERNETIC DEFENSE SYSTEM</p>
-        <div class="flex gap-4 mb-8">
-            <button id="btn-opt-1" class="char-btn selected">Standard</button>
-            <button id="btn-opt-2" class="char-btn" disabled>GLB Mode</button>
-        </div>
         <button id="start-btn">Initialize</button>
     </div>
 
     <div id="game-over-screen" class="hidden">
         <h1 class="text-6xl font-black mb-4" id="end-title">SYSTEM FAILURE</h1>
         <p class="text-2xl mb-8 text-gray-400" id="end-score">Score: 0</p>
-        <button id="restart-btn">Reboot</button>
+        <button id="restart-btn" onclick="location.reload()">Reboot</button>
     </div>
 
     <script>
         const GAME_STATE = { MENU: 0, PLAYING: 1, GAMEOVER: 2 };
         let currentState = GAME_STATE.MENU;
-        let score = 0, currentLevel = 1, totalKills = 0, timeRemaining = 0, frameCount = 0;
-        let selectedCharacter = 1, loadedGLB = null, loadedAnimations = [];
+        let score = 0, currentLevel = 1, totalKills = 0, timeRemaining = 0, player = null, mixer = null, idleAction, walkAction;
 
         const LEVELS = [
-            { id: 1, name: "I: SECTOR ALPHA", requiredKills: 20, timeLimit: 120, fog: 0x0f0f20, ground: 0x050510 },
-            { id: 2, name: "II: HIVE DEPTHS", requiredKills: 40, timeLimit: 120, fog: 0x100520, ground: 0x050010 },
-            { id: 3, name: "III: THE CORE", requiredKills: 100, timeLimit: 300, fog: 0x051010, ground: 0x000505 }
+            { id: 1, name: "I: SECTOR ALPHA", requiredKills: 20, timeLimit: 120 },
+            { id: 2, name: "II: HIVE DEPTHS", requiredKills: 40, timeLimit: 120 },
+            { id: 3, name: "III: THE CORE", requiredKills: 100, timeLimit: 300 }
         ];
 
         const canvas = document.getElementById('game-canvas');
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.8; // Brighter for reflections
-        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMappingExposure = 2.5; // Brighter for reflections
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
-        scene.fog = new THREE.FogExp2(0x0f0f20, 0.015);
+        scene.background = new THREE.Color(0x020205);
+        // Cyberpunk Fog (Clear Haze)
+        scene.fog = new THREE.FogExp2(0x00ffff, 0.008); 
 
-        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const cameraOffset = new THREE.Vector3(0, 20, 30);
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const cameraOffset = new THREE.Vector3(0, 15, 20);
         
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
         scene.add(ambientLight);
         
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
-        dirLight.position.set(20, 50, 20);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 3.0);
+        dirLight.position.set(10, 20, 10);
         scene.add(dirLight);
 
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x050505 }));
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.2, metalness: 0.8 }));
         ground.rotation.x = -Math.PI / 2;
         scene.add(ground);
 
         class Pool {
-            constructor(factory, size) {
-                this.items = Array.from({length: size}, () => factory());
-            }
+            constructor(factory, size) { this.items = Array.from({length: size}, () => factory()); }
             get() { return this.items.find(i => !i.active); }
             getActive() { return this.items.filter(i => i.active); }
         }
 
         const projPool = new Pool(() => {
-            const m = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+            const m = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
             m.visible = false; scene.add(m);
             return { mesh: m, active: false, life: 2.0, velocity: new THREE.Vector3(), isPlayer: true };
-        }, 100);
+        }, 50);
 
-        function fireProjectile(origin, dir, speed, isPlayer) {
+        function fireProjectile(origin, dir, speed) {
             const p = projPool.get();
             if(p) {
                 p.active = true; p.mesh.visible = true;
-                p.mesh.position.copy(origin);
+                p.mesh.position.copy(origin).y += 1;
                 p.velocity.copy(dir).multiplyScalar(speed);
-                p.isPlayer = isPlayer; p.life = 2.0;
-                p.mesh.material.color.setHex(isPlayer ? 0x00ffff : 0xff0000);
+                p.life = 2.0;
             }
         }
 
         class Player {
             constructor() {
                 this.group = new THREE.Group();
-                const b = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2, 1), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 }));
+                // Fallback geometry
+                const b = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({ color: 0x4f46e5 }));
                 this.group.add(b);
                 scene.add(this.group);
                 this.position = this.group.position;
                 this.velocity = new THREE.Vector3();
-                this.health = 100; this.maxHealth = 100;
-                this.radius = 1.5;
             }
             update(dt) {
-                // Movement Logic (Basic WASD)
-                if(keys.w) this.velocity.z = -10; else if(keys.s) this.velocity.z = 10; else this.velocity.z = 0;
-                if(keys.a) this.velocity.x = -10; else if(keys.d) this.velocity.x = 10; else this.velocity.x = 0;
+                const moveSpeed = 8;
+                this.velocity.set(0,0,0);
+                if(keys.w) this.velocity.z -= moveSpeed;
+                if(keys.s) this.velocity.z += moveSpeed;
+                if(keys.a) this.velocity.x -= moveSpeed;
+                if(keys.d) this.velocity.x += moveSpeed;
                 this.position.addScaledVector(this.velocity, dt);
                 camera.position.lerp(this.position.clone().add(cameraOffset), dt * 5);
                 camera.lookAt(this.position);
@@ -160,16 +153,13 @@
 
         class Enemy {
             constructor() {
-                this.group = new THREE.Mesh(new THREE.TetrahedronGeometry(1.2), new THREE.MeshStandardMaterial({ color: 0xff0055, metalness: 0.5 }));
-                this.group.visible = false;
-                scene.add(this.group);
-                this.active = false;
-                this.position = this.group.position;
-                this.radius = 2.0; // Larger hitbox
+                this.group = new THREE.Mesh(new THREE.TetrahedronGeometry(1.5), new THREE.MeshStandardMaterial({ color: 0xff0055, roughness: 0.1, metalness: 0.9 }));
+                this.group.visible = false; scene.add(this.group);
+                this.active = false; this.position = this.group.position;
             }
-            spawn(x, z) {
+            spawn() {
                 this.active = true; this.group.visible = true;
-                this.position.set(x, 1, z);
+                this.position.set((Math.random()-0.5)*50, 1, (Math.random()-0.5)*50);
             }
             die() {
                 this.active = false; this.group.visible = false;
@@ -178,63 +168,49 @@
             }
         }
 
-        const enemies = Array.from({length: 40}, () => new Enemy());
+        const enemies = Array.from({length: 20}, () => new Enemy());
         
-        function checkWinCondition() {
-            if (totalKills >= 100 && currentLevel === 3) endGame("HIVE ELIMINATED - VICTORY");
-            else if (totalKills >= LEVELS[currentLevel-1].requiredKills && currentLevel < 3) {
-                currentLevel++;
-                initLevel(currentLevel);
-            }
-        }
-
         function initLevel(lvl) {
             currentLevel = lvl;
-            const data = LEVELS[lvl-1];
-            timeRemaining = data.timeLimit;
-            scene.fog.color.setHex(data.fog);
-            scene.background.setHex(data.ground);
-            document.getElementById('level-display').innerText = data.name;
-        }
-
-        function endGame(msg) {
-            currentState = GAME_STATE.GAMEOVER;
-            document.getElementById('end-title').innerText = msg;
-            document.getElementById('game-over-screen').classList.remove('hidden');
+            timeRemaining = LEVELS[lvl-1].timeLimit;
+            document.getElementById('level-display').innerText = LEVELS[lvl-1].name;
         }
 
         function animate(time) {
             if(currentState !== GAME_STATE.PLAYING) return;
             requestAnimationFrame(animate);
-            
             const dt = 0.016;
             timeRemaining -= dt;
             document.getElementById('timer-display').innerText = `TIME: ${Math.floor(timeRemaining)}`;
-            if(timeRemaining <= 0) endGame("SYSTEM FAILURE");
+            
+            if(timeRemaining <= 0) {
+                currentState = GAME_STATE.GAMEOVER;
+                document.getElementById('game-over-screen').classList.remove('hidden');
+                return;
+            }
 
-            // Fog Pulsing
-            scene.fog.density = 0.01 + Math.sin(time * 0.001) * 0.005;
-
-            // Projectile Physics
+            // Projectiles
             projPool.getActive().forEach(p => {
                 p.mesh.position.addScaledVector(p.velocity, dt);
                 p.life -= dt;
                 if(p.life <= 0) { p.active = false; p.mesh.visible = false; }
                 
-                if(p.isPlayer) {
-                    enemies.forEach(e => {
-                        if(e.active && p.mesh.position.distanceTo(e.position) < e.radius + 1) {
-                            e.die(); p.active = false; p.mesh.visible = false;
-                            checkWinCondition();
+                enemies.forEach(e => {
+                    if(e.active && p.mesh.position.distanceTo(e.position) < 2) {
+                        e.die(); p.active = false; p.mesh.visible = false;
+                        if(totalKills >= 100 && currentLevel === 3) {
+                            document.getElementById('end-title').innerText = "CORE DESTROYED - VICTORY";
+                            currentState = GAME_STATE.GAMEOVER;
+                        } else if(totalKills >= LEVELS[currentLevel-1].requiredKills && currentLevel < 3) {
+                            initLevel(currentLevel + 1);
                         }
-                    });
-                }
+                    }
+                });
             });
 
-            // Enemy Spawn
-            if(Math.random() < 0.05) {
+            if(Math.random() < 0.03) {
                 const e = enemies.find(en => !en.active);
-                if(e) e.spawn((Math.random()-0.5)*100, (Math.random()-0.5)*100);
+                if(e) e.spawn();
             }
 
             player.update(dt);
@@ -251,7 +227,10 @@
         });
         
         window.addEventListener('mousedown', () => {
-            if(currentState === GAME_STATE.PLAYING) fireProjectile(player.position, new THREE.Vector3(0,0,-1).applyQuaternion(player.group.quaternion), 30, true);
+            if(currentState === GAME_STATE.PLAYING) {
+                const dir = new THREE.Vector3(0,0,-1);
+                fireProjectile(player.position, dir, 40);
+            }
         });
     </script>
 </body>
