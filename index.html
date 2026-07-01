@@ -2,102 +2,968 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>KORU // DEPLOYMENT BUILD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Koru: The Fight for Eden</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Include GLTFLoader for Option 2 -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+    
     <style>
-        body { margin: 0; background: #000; overflow: hidden; color: white; font-family: monospace; }
-        #overlay { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.9); z-index: 10;
-        }
-        #status { font-size: 1.2rem; color: #3b82f6; text-align: center; padding: 20px; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #050505; color: white; font-family: 'Inter', sans-serif; }
+        #game-canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 2rem; }
+        .hud-bar-container { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; overflow: hidden; width: 250px; height: 12px; margin-top: 0.5rem; }
+        .hud-bar { height: 100%; transition: width 0.1s linear; }
+        .health-bar { background: linear-gradient(90deg, #ef4444, #f87171); box-shadow: 0 0 10px #ef4444; }
+        .neural-bar { background: linear-gradient(90deg, #3b82f6, #60a5fa); box-shadow: 0 0 15px #3b82f6; }
+        
+        #start-screen, #game-over-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; backdrop-filter: blur(5px); }
+        .hidden { display: none !important; }
+        
+        .crt-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; opacity: 0.3; }
+        
+        button { pointer-events: auto; background: linear-gradient(45deg, #1e3a8a, #3b82f6); border: 2px solid #60a5fa; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); transition: all 0.2s; cursor: pointer; }
+        button:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 0 25px rgba(59, 130, 246, 0.8); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; background: #374151; border-color: #4b5563; }
+        
+        .char-btn.selected { background: linear-gradient(45deg, #047857, #10b981); border-color: #34d399; box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
     </style>
 </head>
 <body>
 
-    <div id="overlay">
-        <div id="status">INITIALIZING DRACO SYSTEM...</div>
-    </div>
     <canvas id="game-canvas"></canvas>
+    <div class="crt-overlay"></div>
+
+    <div id="ui-layer" class="hidden">
+        <div class="flex justify-between items-start w-full">
+            <div>
+                <h1 class="text-2xl font-bold tracking-widest uppercase text-white drop-shadow-md">KORU</h1>
+                <div class="mt-2">
+                    <div class="text-xs text-gray-300 font-mono tracking-wider">ARMOR INTEGRITY</div>
+                    <div class="hud-bar-container"><div id="health-bar" class="hud-bar health-bar" style="width: 100%;"></div></div>
+                </div>
+                <div class="mt-4">
+                    <div class="text-xs text-blue-300 font-mono tracking-wider">NEURAL OVERCLOCK</div>
+                    <div class="hud-bar-container"><div id="neural-bar" class="hud-bar neural-bar" style="width: 100%;"></div></div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-400 font-mono" id="level-display">SECTOR: SURFACE</div>
+                <div class="text-3xl font-bold font-mono mt-1 text-blue-400" id="score-display">0000</div>
+                <div class="text-xl font-mono mt-2 text-red-400 font-bold hidden" id="timer-display">T-MINUS: --</div>
+            </div>
+        </div>
+        <div class="w-full text-center pb-4">
+            <p class="text-xs text-gray-400 font-mono">[W A S D] Move | [SPACE] Jump | [SHIFT+W] Tactical Dash | [L-CLICK] Fire</p>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1 class="text-6xl font-black mb-2 tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-cyan-300 drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]">KORU</h1>
+        <h2 class="text-2xl mb-6 font-light tracking-widest text-gray-300">THE FIGHT FOR EDEN</h2>
+        
+        <div class="max-w-lg text-center mb-6 text-gray-400 text-sm font-mono space-y-4">
+            <p>Reclaim Earth from the invasive Zytheron Hive-Mind.</p>
+        </div>
+
+        <div class="mb-8 flex flex-col items-center">
+            <h3 class="text-sm tracking-widest text-blue-300 mb-3 font-bold">SELECT LOADOUT</h3>
+            <div class="flex gap-4">
+                <button id="btn-opt-1" class="char-btn selected px-4 py-2 rounded-lg text-sm font-bold tracking-wider text-white">OPT 1: PROCEDURAL</button>
+                <button id="btn-opt-2" class="char-btn px-4 py-2 rounded-lg text-sm font-bold tracking-wider text-white" disabled>OPT 2: SEARCHING .GLB...</button>
+            </div>
+            <p id="glb-status" class="text-xs mt-2 text-gray-500 font-mono">Place 'koru.glb' in the same folder to enable.</p>
+        </div>
+
+        <button id="start-btn" class="px-10 py-4 rounded-full text-2xl font-bold tracking-wider text-white">INITIATE LINK</button>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1 class="text-5xl font-black mb-4 text-red-500 tracking-widest drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]" id="end-title">VITAL SIGNS LOST</h1>
+        <p class="text-xl mb-8 text-gray-300" id="end-score">Score: 0</p>
+        <button id="restart-btn" class="px-8 py-3 rounded-full text-xl font-bold tracking-wider text-white">REBOOT SEQUENCE</button>
+    </div>
 
     <script>
-        const statusEl = document.getElementById('status');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        // --- GAME ENGINE & STATE ---
+        const GAME_STATE = { MENU: 0, PLAYING: 1, GAMEOVER: 2 };
         
-        scene.add(new THREE.AmbientLight(0xffffff, 1));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(5, 5, 5);
+        let currentState = GAME_STATE.MENU;
+        let score = 0;
+        let currentLevel = 1;
+        let levelTimer = -1;
+        let timeRemaining = 0;
+        let lastTime = 0;
+        let frameCount = 0;
+
+        // Character Selection Setup
+        let selectedCharacter = 1; // 1 = Procedural, 2 = GLB
+        let loadedGLB = null;
+        let loadedAnimations = [];
+
+        // Level Matrix Data
+        const LEVELS = [
+            { id: 1, name: "I: THE SURFACE", objective: "Scout & Destroy", aiScaling: 0.3, requiredKills: 10, timeLimit: -1, fogColor: 0x8b3a3a, groundColor: 0x2a1a1a },
+            { id: 2, name: "II: HIVE INFILTRATION", objective: "Extract Nodes", aiScaling: 0.6, requiredKills: 25, timeLimit: 60, fogColor: 0x4a148c, groundColor: 0x1a0a2a },
+            { id: 3, name: "III: ZYXAR'S CORE", objective: "Boss Defeat", aiScaling: 0.9, requiredKills: 1, isBoss: true, timeLimit: 90, fogColor: 0x004d40, groundColor: 0x001a1a }
+        ];
+
+        let levelKills = 0;
+        
+        // DOM Elements
+        const uiLayer = document.getElementById('ui-layer');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const healthBar = document.getElementById('health-bar');
+        const neuralBar = document.getElementById('neural-bar');
+        const scoreDisplay = document.getElementById('score-display');
+        const levelDisplay = document.getElementById('level-display');
+        const timerDisplay = document.getElementById('timer-display');
+        
+        // --- THREE.JS SETUP ---
+        const canvas = document.getElementById('game-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        // CRITICAL FOR .GLB REFLECTIONS: Correct encoding and brighter tonemapping
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2; 
+        
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(LEVELS[0].fogColor);
+        scene.fog = new THREE.FogExp2(LEVELS[0].fogColor, 0.02);
+
+        // Pseudo 2.5D Isometric/Orthographic feel
+        const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 1000);
+        const cameraOffset = new THREE.Vector3(0, 30, 40);
+        camera.position.copy(cameraOffset);
+        
+        // --- STREAMING_CHUNK:Setting up Brighter Lighting Environment... ---
+        // Increased Ambient Light
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+        scene.add(ambientLight);
+        
+        // Added Hemisphere light for metallic reflections from sky to ground
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+        hemiLight.position.set(0, 100, 0);
+        scene.add(hemiLight);
+        
+        // Stronger Directional Light
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048; // Increased map size for better shadows on custom models
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 200;
+        dirLight.shadow.camera.left = -50;
+        dirLight.shadow.camera.right = 50;
+        dirLight.shadow.camera.top = 50;
+        dirLight.shadow.camera.bottom = -50;
         scene.add(dirLight);
 
-        const loadingManager = new THREE.LoadingManager();
-        const loader = new THREE.GLTFLoader(loadingManager);
-        const dracoLoader = new THREE.DRACOLoader();
-        
-        // Use CDN for Draco decoder
-        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-        loader.setDRACOLoader(dracoLoader);
+        // --- ENVIRONMENT ---
+        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundMat = new THREE.MeshStandardMaterial({ color: LEVELS[0].groundColor, roughness: 0.8, metalness: 0.2 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
 
-        const modelUrl = './koru.glb';
+        // --- STREAMING_CHUNK:GLTFLoader for Option 2 Model... ---
+        const gltfLoader = new THREE.GLTFLoader();
+        gltfLoader.load(
+            'koru.glb', 
+            (gltf) => {
+                loadedGLB = gltf.scene;
+                loadedAnimations = gltf.animations;
+                
+                // Ensure model casts and receives shadows
+                loadedGLB.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+                        if(node.material) {
+                            // Ensure metalness stands out
+                            node.material.envMapIntensity = 1.5; 
+                        }
+                    }
+                });
 
-        console.log("[CORE] // ATTEMPTING FETCH: " + modelUrl);
+                // Update UI to allow selection
+                const btnOpt2 = document.getElementById('btn-opt-2');
+                btnOpt2.disabled = false;
+                btnOpt2.innerText = 'OPT 2: .GLB MODEL (READY)';
+                document.getElementById('glb-status').innerText = 'Model Koru loaded successfully.';
+                document.getElementById('glb-status').classList.replace('text-gray-500', 'text-green-400');
+            }, 
+            undefined, 
+            (error) => {
+                console.warn('Could not load koru.glb. Ensure it is in the same folder.', error);
+                document.getElementById('glb-status').innerText = 'Model not found. Proceeding with Option 1.';
+                document.getElementById('glb-status').classList.replace('text-gray-500', 'text-red-400');
+            }
+        );
 
-        loader.load(modelUrl, (gltf) => {
-            console.log("[CORE] // SUCCESS: ASSET LOADED");
-            document.getElementById('overlay').style.display = 'none';
-            player = new Player(gltf);
-            scene.add(player.model);
-            animate();
-        }, (xhr) => {
-            const percent = Math.round((xhr.loaded / xhr.total) * 100);
-            statusEl.innerText = `LOADING ASSETS: ${percent || 0}%`;
-        }, (err) => {
-            console.error("[CORE] // FAILED TO LOAD GLB:", err);
-            statusEl.innerHTML = `ASSET LOAD ERROR<br><br>${err.message}`;
+        // UI Event Listeners for Loadout
+        document.getElementById('btn-opt-1').addEventListener('click', (e) => {
+            selectedCharacter = 1;
+            e.target.classList.add('selected');
+            document.getElementById('btn-opt-2').classList.remove('selected');
         });
 
-        let player;
+        document.getElementById('btn-opt-2').addEventListener('click', (e) => {
+            if(loadedGLB) {
+                selectedCharacter = 2;
+                e.target.classList.add('selected');
+                document.getElementById('btn-opt-1').classList.remove('selected');
+            }
+        });
+
+
+        // --- CUSTOM POST-PROCESSING (CHROMATIC ABERRATION) ---
+        const renderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+        
+        const orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const orthoScene = new THREE.Scene();
+        const quadGeo = new THREE.PlaneGeometry(2, 2);
+        
+        const chromaticAberrationShader = {
+            uniforms: {
+                tDiffuse: { value: renderTarget.texture },
+                aberrationIntensity: { value: 0.0 },
+                dashVector: { value: new THREE.Vector2(0, 0) }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float aberrationIntensity;
+                uniform vec2 dashVector;
+                varying vec2 vUv;
+                void main() {
+                    vec2 dir = length(dashVector) > 0.0 ? normalize(dashVector) : vec2(1.0, 1.0);
+                    vec2 offset = dir * aberrationIntensity * 0.05;
+                    vec4 cr = texture2D(tDiffuse, vUv + offset);
+                    vec4 cg = texture2D(tDiffuse, vUv);
+                    vec4 cb = texture2D(tDiffuse, vUv - offset);
+                    gl_FragColor = vec4(cr.r, cg.g, cb.b, cg.a);
+                }
+            `
+        };
+        
+        const postProcessMat = new THREE.ShaderMaterial({
+            uniforms: chromaticAberrationShader.uniforms,
+            vertexShader: chromaticAberrationShader.vertexShader,
+            fragmentShader: chromaticAberrationShader.fragmentShader
+        });
+        const quad = new THREE.Mesh(quadGeo, postProcessMat);
+        orthoScene.add(quad);
+
+        // --- STREAMING_CHUNK:Configuring Input Handlers... ---
+        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+        const mouse = new THREE.Vector2();
+        let isShooting = false;
+        
+        window.addEventListener('keydown', (e) => {
+            if(e.code === 'KeyW') keys.w = true;
+            if(e.code === 'KeyA') keys.a = true;
+            if(e.code === 'KeyS') keys.s = true;
+            if(e.code === 'KeyD') keys.d = true;
+            if(e.code === 'Space') keys.space = true;
+            if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = true;
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            if(e.code === 'KeyW') keys.w = false;
+            if(e.code === 'KeyA') keys.a = false;
+            if(e.code === 'KeyS') keys.s = false;
+            if(e.code === 'KeyD') keys.d = false;
+            if(e.code === 'Space') keys.space = false;
+            if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
+        });
+
+        const raycaster = new THREE.Raycaster();
+        const mousePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        let aimTarget = new THREE.Vector3();
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+        
+        window.addEventListener('mousedown', (e) => { if (e.button === 0) isShooting = true; });
+        window.addEventListener('mouseup', (e) => { if (e.button === 0) isShooting = false; });
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderTarget.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function checkSphereCollision(pos1, r1, pos2, r2) {
+            const distSq = pos1.distanceToSquared(pos2);
+            const rSum = r1 + r2;
+            return distSq < rSum * rSum;
+        }
+
+        // --- OBJECT POOLING ---
+        class Pool {
+            constructor(factory, size) {
+                this.items = [];
+                for(let i=0; i<size; i++) {
+                    const item = factory();
+                    item.active = false;
+                    this.items.push(item);
+                }
+            }
+            get() {
+                const item = this.items.find(i => !i.active);
+                if(item) item.active = true;
+                return item;
+            }
+            getActive() {
+                return this.items.filter(i => i.active);
+            }
+        }
+
+        // --- PARTICLES & PROJECTILES ---
+        const particleGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const particleMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true });
+        function createParticle() {
+            const mesh = new THREE.Mesh(particleGeo, particleMat.clone());
+            mesh.visible = false;
+            scene.add(mesh);
+            return { mesh: mesh, velocity: new THREE.Vector3(), life: 0, maxLife: 1, active: false, type: 'dust' };
+        }
+        const particlePool = new Pool(createParticle, 200);
+        
+        function emitParticles(pos, colorHex, count, speed, type = 'dust') {
+            for(let i=0; i<count; i++) {
+                const p = particlePool.get();
+                if(p) {
+                    p.mesh.position.copy(pos);
+                    p.mesh.material.color.setHex(colorHex);
+                    p.mesh.material.opacity = 1.0;
+                    p.mesh.visible = true;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(Math.random() * 2 - 1);
+                    p.velocity.set(
+                        Math.sin(phi) * Math.cos(theta),
+                        Math.abs(Math.cos(phi)),
+                        Math.sin(phi) * Math.sin(theta)
+                    ).multiplyScalar(speed * (0.5 + Math.random() * 0.5));
+                    if(type === 'exhaust') p.velocity.y *= -1;
+                    p.life = 1.0; p.type = type;
+                }
+            }
+        }
+
+        const projGeo = new THREE.SphereGeometry(0.4, 8, 8);
+        const projMatPlayer = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
+        const projMatEnemy = new THREE.MeshBasicMaterial({ color: 0xf87171 });
+        function createProjectile() {
+            const mesh = new THREE.Mesh(projGeo, projMatPlayer);
+            mesh.visible = false;
+            scene.add(mesh);
+            return { mesh, velocity: new THREE.Vector3(), isPlayer: true, active: false, life: 2.0, radius: 0.4 };
+        }
+        const projPool = new Pool(createProjectile, 100);
+
+        function fireProjectile(origin, targetDir, speed, isPlayer) {
+            const proj = projPool.get();
+            if(proj) {
+                proj.mesh.position.copy(origin);
+                proj.mesh.material = isPlayer ? projMatPlayer : projMatEnemy;
+                proj.mesh.visible = true;
+                proj.velocity.copy(targetDir).normalize().multiplyScalar(speed);
+                proj.isPlayer = isPlayer;
+                proj.life = 2.0;
+            }
+        }
+
+        // --- STREAMING_CHUNK:Defining Player Logic With Model Interop... ---
         class Player {
-            constructor(gltf) {
-                this.model = gltf.scene;
-                this.mixer = new THREE.AnimationMixer(this.model);
+            constructor(charType) {
+                this.group = new THREE.Group();
+                this.mixer = null;
                 
-                const idle = THREE.AnimationClip.findByName(gltf.animations, 'Idle');
-                const walk = THREE.AnimationClip.findByName(gltf.animations, 'Sneak Walk');
+                // OPTION 1: Procedural Gorilla
+                if (charType === 1 || !loadedGLB) {
+                    const torsoGeo = new THREE.BoxGeometry(2, 2.5, 1.5);
+                    const furMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0.1 });
+                    this.torso = new THREE.Mesh(torsoGeo, furMat);
+                    this.torso.position.y = 2.5;
+                    this.torso.castShadow = true;
+                    this.group.add(this.torso);
+
+                    const streakGeo = new THREE.BoxGeometry(2.1, 0.2, 1.6);
+                    const glowMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
+                    const streak = new THREE.Mesh(streakGeo, glowMat);
+                    streak.position.y = 0.5;
+                    this.torso.add(streak);
+
+                    const headGeo = new THREE.BoxGeometry(1.2, 1.2, 1.4);
+                    this.head = new THREE.Mesh(headGeo, furMat);
+                    this.head.position.set(0, 1.5, 0.2);
+                    this.head.castShadow = true;
+                    this.torso.add(this.head);
+                    
+                    const eyeGeo = new THREE.PlaneGeometry(0.8, 0.2);
+                    const eyes = new THREE.Mesh(eyeGeo, glowMat);
+                    eyes.position.set(0, 0.2, 0.71);
+                    this.head.add(eyes);
+
+                    const armGeo = new THREE.BoxGeometry(0.8, 3, 0.8);
+                    this.armL = new THREE.Mesh(armGeo, furMat);
+                    this.armL.position.set(-1.5, 0, 0);
+                    this.torso.add(this.armL);
+                    
+                    this.armR = new THREE.Mesh(armGeo, furMat);
+                    this.armR.position.set(1.5, 0, 0);
+                    this.torso.add(this.armR);
+                } 
+                // OPTION 2: External .GLB Model
+                else if (charType === 2 && loadedGLB) {
+                    // Reuse the loaded scene directly to preserve skins/bones perfectly
+                    this.model = loadedGLB;
+                    this.model.position.y = 0; // Baseline
+                    
+                    // Add it to our physics/movement group container
+                    this.group.add(this.model);
+
+                    // Setup Animations parsing the JSON structure provided
+                    if (loadedAnimations && loadedAnimations.length > 0) {
+                        this.mixer = new THREE.AnimationMixer(this.model);
+                        
+                        // Look for the specific named animations
+                        const clipIdle = THREE.AnimationClip.findByName(loadedAnimations, 'idle') || loadedAnimations[0];
+                        const clipWalk = THREE.AnimationClip.findByName(loadedAnimations, 'sneak walk') || loadedAnimations[1] || loadedAnimations[0];
+                        
+                        this.animIdle = this.mixer.clipAction(clipIdle);
+                        this.animWalk = this.mixer.clipAction(clipWalk);
+                        
+                        this.animIdle.play();
+                        this.currentAnim = this.animIdle;
+                    }
+                    
+                    // Fallback stub to prevent errors from procedural recoil logic
+                    this.torso = { rotation: { x: 0 } };
+                }
+
+                scene.add(this.group);
+
+                // Inherited State, Physics, and Containers
+                this.position = this.group.position;
+                this.velocity = new THREE.Vector3();
+                this.speed = 12;
+                this.radius = 1.0;
                 
-                if (idle && walk) {
-                    this.idleAction = this.mixer.clipAction(idle);
-                    this.walkAction = this.mixer.clipAction(walk);
-                    this.idleAction.play();
-                    this.walkAction.play();
-                    this.walkAction.weight = 0;
+                this.maxHealth = 100;
+                this.health = 100;
+                this.maxNeural = 100;
+                this.neural = 100;
+                
+                this.isGrounded = false;
+                this.dashCooldown = 0;
+                this.shootCooldown = 0;
+                
+                this.isDashing = false;
+                this.dashTimer = 0;
+            }
+
+            update(dt) {
+                if(this.health <= 0) return;
+
+                // Update GLB Animations if active
+                if (this.mixer) this.mixer.update(dt);
+
+                // Aiming via Raycast
+                raycaster.setFromCamera(mouse, camera);
+                raycaster.ray.intersectPlane(mousePlane, aimTarget);
+                
+                // Rotate body to face aim direction
+                const lookAtPos = new THREE.Vector3(aimTarget.x, this.position.y, aimTarget.z);
+                this.group.lookAt(lookAtPos);
+
+                // Controls & Movement
+                const inputDir = new THREE.Vector3();
+                if(!this.isDashing) {
+                    if (keys.w) inputDir.z -= 1;
+                    if (keys.s) inputDir.z += 1;
+                    if (keys.a) inputDir.x -= 1;
+                    if (keys.d) inputDir.x += 1;
+                }
+
+                const isMoving = inputDir.lengthSq() > 0;
+                if (isMoving) inputDir.normalize();
+
+                // GLB Animation Switching (Idle vs Walk)
+                if (this.mixer) {
+                    if ((isMoving || this.isDashing) && this.currentAnim !== this.animWalk) {
+                        this.animWalk.reset().fadeIn(0.2).play();
+                        if (this.animIdle) this.animIdle.fadeOut(0.2);
+                        this.currentAnim = this.animWalk;
+                    } else if (!isMoving && !this.isDashing && this.currentAnim !== this.animIdle) {
+                        this.animIdle.reset().fadeIn(0.2).play();
+                        if (this.animWalk) this.animWalk.fadeOut(0.2);
+                        this.currentAnim = this.animIdle;
+                    }
+                }
+
+                // Gravity
+                this.velocity.y -= 40 * dt; 
+
+                // Jump
+                if (keys.space && this.isGrounded) {
+                    this.velocity.y = 15;
+                    this.isGrounded = false;
+                    if(keys.w) emitParticles(this.position, 0x60a5fa, 15, 10, 'exhaust');
+                }
+
+                // Tactical Dash
+                if (keys.shift && keys.w && this.dashCooldown <= 0 && this.neural >= 30 && !this.isDashing) {
+                    this.isDashing = true;
+                    this.dashTimer = 0.15;
+                    this.neural -= 30;
+                    this.dashCooldown = 1.0;
+                    
+                    const dashDir = new THREE.Vector3(0,0,-1).applyQuaternion(this.group.quaternion);
+                    this.velocity.x = dashDir.x * 60;
+                    this.velocity.z = dashDir.z * 60;
+                    this.velocity.y = 5;
+                    
+                    postProcessMat.uniforms.aberrationIntensity.value = 1.0;
+                    postProcessMat.uniforms.dashVector.value.set(dashDir.x, dashDir.z);
+                    
+                    emitParticles(this.position, 0x3b82f6, 30, 20);
+                }
+
+                if(!this.isDashing) {
+                    this.velocity.x = inputDir.x * this.speed;
+                    this.velocity.z = inputDir.z * this.speed;
+                }
+
+                this.position.addScaledVector(this.velocity, dt);
+
+                if (this.position.y <= 0) {
+                    this.position.y = 0;
+                    this.velocity.y = 0;
+                    this.isGrounded = true;
+                }
+
+                const bound = 95;
+                if(this.position.x > bound) this.position.x = bound;
+                if(this.position.x < -bound) this.position.x = -bound;
+                if(this.position.z > bound) this.position.z = bound;
+                if(this.position.z < -bound) this.position.z = -bound;
+
+                if(this.dashCooldown > 0) this.dashCooldown -= dt;
+                if(this.shootCooldown > 0) this.shootCooldown -= dt;
+                
+                if(this.neural < this.maxNeural) {
+                    this.neural += 10 * dt;
+                    if(this.neural > this.maxNeural) this.neural = this.maxNeural;
+                }
+
+                if(this.isDashing) {
+                    this.dashTimer -= dt;
+                    if(this.dashTimer <= 0) {
+                        this.isDashing = false;
+                        this.velocity.x = 0;
+                        this.velocity.z = 0;
+                    }
+                }
+
+                if(postProcessMat.uniforms.aberrationIntensity.value > 0) {
+                    postProcessMat.uniforms.aberrationIntensity.value -= dt * 2.0;
+                    if(postProcessMat.uniforms.aberrationIntensity.value < 0) 
+                        postProcessMat.uniforms.aberrationIntensity.value = 0;
+                }
+
+                if (isShooting && this.shootCooldown <= 0 && !this.isDashing) {
+                    const shootDir = new THREE.Vector3().subVectors(aimTarget, this.position);
+                    shootDir.y = 0;
+                    if(shootDir.lengthSq() > 0) {
+                        const origin = this.position.clone().add(new THREE.Vector3(0, 2, 0));
+                        fireProjectile(origin, shootDir, 25, true);
+                        this.shootCooldown = 0.15;
+                        
+                        // Recoil animation (Safe fallback included above for GLB)
+                        if(this.torso && this.torso.rotation) {
+                            this.torso.rotation.x = -0.2;
+                        }
+                    }
+                }
+
+                if(this.torso && this.torso.rotation && typeof this.torso.rotation.x === 'number') {
+                    this.torso.rotation.x = THREE.MathUtils.lerp(this.torso.rotation.x, 0, dt * 10);
+                }
+                
+                camera.position.lerp(this.position.clone().add(cameraOffset), dt * 5);
+                camera.lookAt(this.position);
+                
+                healthBar.style.width = `${(this.health / this.maxHealth) * 100}%`;
+                neuralBar.style.width = `${(this.neural / this.maxNeural) * 100}%`;
+            }
+
+            takeDamage(amount) {
+                if(this.isDashing) return;
+                this.health -= amount;
+                emitParticles(this.position, 0xef4444, 20, 15);
+                
+                uiLayer.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                setTimeout(() => uiLayer.style.backgroundColor = 'transparent', 50);
+
+                if (this.health <= 0) gameOver();
+            }
+        }
+
+        // --- STREAMING_CHUNK:AI Logic and Level Management... ---
+        class Enemy {
+            constructor() {
+                this.id = Math.floor(Math.random() * 10000);
+                this.group = new THREE.Group();
+                
+                const bodyGeo = new THREE.TetrahedronGeometry(1.5, 0);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, metalness: 0.8 });
+                this.mesh = new THREE.Mesh(bodyGeo, mat);
+                this.mesh.position.y = 1.0;
+                this.mesh.castShadow = true;
+                
+                const coreGeo = new THREE.IcosahedronGeometry(0.5, 0);
+                const coreMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+                this.core = new THREE.Mesh(coreGeo, coreMat);
+                this.mesh.add(this.core);
+                
+                this.group.add(this.mesh);
+                scene.add(this.group);
+                
+                this.position = this.group.position;
+                this.radius = 1.5;
+                this.active = false;
+                
+                this.state = 'IDLE';
+                this.health = 30;
+                this.maxHealth = 30;
+                this.speed = 5;
+                this.engagementRadius = 25;
+                this.attackCooldown = 0;
+                this.attackRateMult = 1.0; 
+                this.isBoss = false;
+            }
+
+            spawn(pos, levelData) {
+                this.position.copy(pos);
+                this.position.y = 0;
+                this.active = true;
+                this.health = levelData.isBoss ? 500 : 30 * (1 + levelData.aiScaling);
+                this.maxHealth = this.health;
+                this.attackRateMult = levelData.aiScaling;
+                this.state = 'IDLE';
+                this.group.visible = true;
+                this.isBoss = levelData.isBoss || false;
+                
+                if(this.isBoss) {
+                    this.group.scale.set(3,3,3);
+                    this.core.material.color.setHex(0xef4444);
+                    this.speed = 8;
+                    this.engagementRadius = 50;
                 } else {
-                    console.warn("[CORE] // ANIMATIONS NOT FOUND.");
+                    this.group.scale.set(1,1,1);
+                    this.core.material.color.setHex(0xf59e0b);
+                    this.speed = 4 + (levelData.aiScaling * 3);
                 }
             }
 
-            update(dt, isMoving) {
-                this.mixer.update(dt);
-                this.walkAction.weight = THREE.MathUtils.lerp(this.walkAction.weight, isMoving ? 1 : 0, 0.2);
-                this.idleAction.weight = THREE.MathUtils.lerp(this.idleAction.weight, isMoving ? 0 : 1, 0.2);
+            update(dt, player) {
+                if(!this.active) return;
+                
+                const frameOffsetCheck = (frameCount % 10 === this.id % 10);
+                const distToPlayer = this.position.distanceTo(player.position);
+                
+                if(frameOffsetCheck) {
+                    if (this.state === 'IDLE') {
+                        if (distToPlayer < this.engagementRadius) this.state = 'SEEK';
+                    } else if (this.state === 'SEEK') {
+                        if (distToPlayer < 12) this.state = 'ATTACK';
+                        else if (distToPlayer > this.engagementRadius * 1.5) this.state = 'IDLE';
+                    } else if (this.state === 'ATTACK') {
+                        if (distToPlayer > 15) this.state = 'SEEK';
+                    }
+                }
+
+                if (this.state === 'SEEK') {
+                    const dir = new THREE.Vector3().subVectors(player.position, this.position);
+                    dir.y = 0;
+                    if(dir.lengthSq() > 0) {
+                        dir.normalize();
+                        this.position.addScaledVector(dir, this.speed * dt);
+                        this.mesh.position.y = 1.0 + Math.sin(Date.now() * 0.005 + this.id) * 0.5;
+                        this.mesh.rotation.y += dt;
+                    }
+                } else if (this.state === 'ATTACK') {
+                    this.mesh.rotation.x += dt * 5; 
+                    
+                    if(this.attackCooldown <= 0) {
+                        const dir = new THREE.Vector3().subVectors(player.position, this.position);
+                        dir.y = 0;
+                        dir.normalize();
+                        
+                        if(this.isBoss) {
+                            for(let i=0; i<8; i++) {
+                                const angle = (i/8) * Math.PI * 2;
+                                const bossDir = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+                                fireProjectile(this.position.clone().add(new THREE.Vector3(0, 2, 0)), bossDir, 10 + (this.attackRateMult * 5), false);
+                            }
+                            this.attackCooldown = 1.5;
+                        } else {
+                            fireProjectile(this.position.clone().add(new THREE.Vector3(0, 1, 0)), dir, 12 + (this.attackRateMult * 10), false);
+                            this.attackCooldown = 2.0 - this.attackRateMult; 
+                        }
+                    }
+                }
+                
+                if(this.attackCooldown > 0) this.attackCooldown -= dt;
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                emitParticles(this.position, 0x4ade80, 5, 5);
+                
+                this.core.material.color.setHex(0xffffff);
+                setTimeout(() => {
+                    if(this.active) this.core.material.color.setHex(this.isBoss ? 0xef4444 : 0xf59e0b);
+                }, 100);
+
+                if(this.state === 'IDLE') this.state = 'SEEK';
+                if (this.health <= 0) this.die();
+            }
+            
+            die() {
+                this.active = false;
+                this.group.visible = false;
+                emitParticles(this.position, 0xf59e0b, 30, 15);
+                
+                score += this.isBoss ? 5000 : 100;
+                scoreDisplay.innerText = score.toString().padStart(4, '0');
+                levelKills++;
+                checkLevelProgress();
             }
         }
 
-        camera.position.set(0, 2, 5);
-        let moving = false;
-        window.onkeydown = () => moving = true;
-        window.onkeyup = () => moving = false;
-
-        function animate() {
-            requestAnimationFrame(animate);
-            if(player) player.update(0.016, moving);
-            renderer.render(scene, camera);
+        const maxEnemies = 50;
+        const enemies = [];
+        for(let i=0; i<maxEnemies; i++) {
+            enemies.push(new Enemy());
         }
+
+        function initLevel(levelIndex) {
+            const levelData = LEVELS[levelIndex - 1];
+            currentLevel = levelIndex;
+            levelKills = 0;
+            
+            levelDisplay.innerText = `SECTOR: ${levelData.name} | OBJ: ${levelData.objective}`;
+            
+            scene.fog.color.setHex(levelData.fogColor);
+            scene.background.setHex(levelData.fogColor);
+            ground.material.color.setHex(levelData.groundColor);
+            
+            if(levelData.timeLimit > 0) {
+                timeRemaining = levelData.timeLimit;
+                timerDisplay.classList.remove('hidden');
+            } else {
+                timeRemaining = -1;
+                timerDisplay.classList.add('hidden');
+            }
+
+            enemies.forEach(e => { e.active = false; e.group.visible = false; });
+            
+            if(levelData.isBoss) {
+                const boss = enemies[0];
+                boss.spawn(new THREE.Vector3(0, 0, -30), levelData);
+            }
+        }
+
+        function checkLevelProgress() {
+            const levelData = LEVELS[currentLevel - 1];
+            if (levelKills >= levelData.requiredKills) {
+                if (currentLevel < LEVELS.length) {
+                    uiLayer.style.backgroundColor = 'rgba(255,255,255,0.8)';
+                    setTimeout(() => uiLayer.style.backgroundColor = 'transparent', 200);
+                    initLevel(currentLevel + 1);
+                    player.health = player.maxHealth; 
+                } else {
+                    endGame("HIVE ELIMINATED");
+                }
+            }
+        }
+        
+        function spawnEnemyRoutine(dt) {
+            const levelData = LEVELS[currentLevel - 1];
+            if(levelData.isBoss) return; 
+            
+            if(Math.random() < 0.01 + (levelData.aiScaling * 0.02)) {
+                const e = enemies.find(en => !en.active);
+                if(e) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 40 + Math.random() * 20;
+                    const spawnPos = new THREE.Vector3(
+                        player.position.x + Math.cos(angle) * radius,
+                        0,
+                        player.position.z + Math.sin(angle) * radius
+                    );
+                    e.spawn(spawnPos, levelData);
+                }
+            }
+        }
+
+        // --- STREAMING_CHUNK:Executing Game Loop and Pipeline... ---
+        let player;
+
+        function startGame() {
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            uiLayer.classList.remove('hidden');
+            
+            // Re-instantiate player to allow character switching on resets
+            if (player) { scene.remove(player.group); }
+            
+            player = new Player(selectedCharacter);
+            player.position.set(0, 0, 0);
+            player.health = player.maxHealth;
+            player.neural = player.maxNeural;
+            player.group.visible = true;
+            
+            score = 0;
+            scoreDisplay.innerText = "0000";
+            
+            projPool.items.forEach(p => { p.active = false; p.mesh.visible = false; });
+            particlePool.items.forEach(p => { p.active = false; p.mesh.visible = false; });
+            
+            initLevel(1);
+            
+            currentState = GAME_STATE.PLAYING;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameOver() {
+            currentState = GAME_STATE.GAMEOVER;
+            player.group.visible = false;
+            uiLayer.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+            document.getElementById('end-score').innerText = `Final Score: ${score}`;
+        }
+        
+        function endGame(titleStr) {
+            currentState = GAME_STATE.GAMEOVER;
+            player.group.visible = false;
+            uiLayer.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+            document.getElementById('end-title').innerText = titleStr;
+            document.getElementById('end-title').className = "text-5xl font-black mb-4 text-blue-400 tracking-widest drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]";
+            document.getElementById('end-score').innerText = `Final Score: ${score}`;
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+
+        function gameLoop(time) {
+            if (currentState !== GAME_STATE.PLAYING) return;
+            requestAnimationFrame(gameLoop);
+
+            const dt = Math.min((time - lastTime) / 1000, 0.1); 
+            lastTime = time;
+            frameCount++;
+
+            if(timeRemaining > 0) {
+                timeRemaining -= dt;
+                timerDisplay.innerText = `T-MINUS: ${Math.ceil(timeRemaining)}`;
+                if(timeRemaining <= 0) gameOver(); 
+            }
+
+            player.update(dt);
+            spawnEnemyRoutine(dt);
+
+            const activeEnemies = enemies.filter(e => e.active);
+            activeEnemies.forEach(e => e.update(dt, player));
+
+            const activeProj = projPool.getActive();
+            for(let i = 0; i < activeProj.length; i++) {
+                const proj = activeProj[i];
+                proj.mesh.position.addScaledVector(proj.velocity, dt);
+                proj.life -= dt;
+                
+                if (proj.life <= 0) {
+                    proj.active = false;
+                    proj.mesh.visible = false;
+                    continue;
+                }
+
+                if (proj.isPlayer) {
+                    for(let j = 0; j < activeEnemies.length; j++) {
+                        const enemy = activeEnemies[j];
+                        if (checkSphereCollision(proj.mesh.position, proj.radius, enemy.position, enemy.radius)) {
+                            enemy.takeDamage(10);
+                            proj.active = false;
+                            proj.mesh.visible = false;
+                            emitParticles(proj.mesh.position, 0x60a5fa, 5, 10); 
+                            break;
+                        }
+                    }
+                } else {
+                    if (checkSphereCollision(proj.mesh.position, proj.radius, player.position, player.radius)) {
+                        player.takeDamage(15);
+                        proj.active = false;
+                        proj.mesh.visible = false;
+                    }
+                }
+            }
+
+            const activeParticles = particlePool.getActive();
+            for(let i=0; i<activeParticles.length; i++) {
+                const p = activeParticles[i];
+                p.mesh.position.addScaledVector(p.velocity, dt);
+                p.velocity.y -= 10 * dt; 
+                p.life -= dt * 2.0; 
+                
+                if(p.mesh.position.y < 0) {
+                    p.mesh.position.y = 0;
+                    p.velocity.y *= -0.5; 
+                    p.velocity.x *= 0.8;
+                    p.velocity.z *= 0.8;
+                }
+                
+                p.mesh.material.opacity = p.life;
+                
+                if(p.life <= 0) {
+                    p.active = false;
+                    p.mesh.visible = false;
+                }
+            }
+
+            // Render Pipeline 
+            renderer.setRenderTarget(renderTarget);
+            renderer.render(scene, camera);
+            
+            renderer.setRenderTarget(null); 
+            renderer.render(orthoScene, orthoCamera);
+        }
+
+        // Render initial background menu state
+        renderer.render(scene, camera);
+
     </script>
 </body>
 </html>
