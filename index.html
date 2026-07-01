@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KORU // DEPLOYMENT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; color: white; font-family: monospace; }
+        #overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.9); z-index: 10;
+        }
+        #status { font-size: 1.2rem; color: #3b82f6; text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div id="status">INITIALIZING SYSTEM...</div>
+    </div>
+    <canvas id="game-canvas"></canvas>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 5, 5);
+        scene.add(dirLight);
+
+        let player;
+        const loader = new THREE.GLTFLoader();
+        const modelUrl = './koru.glb';
+
+        console.log("[CORE] // ATTEMPTING ASSET FETCH FROM: " + window.location.href + modelUrl);
+
+        loader.load(modelUrl, (gltf) => {
+            console.log("[CORE] // SUCCESS: ASSET LOADED");
+            document.getElementById('overlay').style.display = 'none';
+            player = new Player(gltf);
+            scene.add(player.model);
+            animate();
+        }, (xhr) => {
+            const percent = Math.round((xhr.loaded / xhr.total) * 100);
+            statusEl.innerText = `LOADING ASSETS: ${percent}%`;
+        }, (err) => {
+            console.error("[CORE] // FAILED TO LOAD GLB:", err);
+            statusEl.innerHTML = `ASSET LOAD ERROR<br><br>Check Browser Console (F12) for details.<br>If you see "Unexpected token <", the file is a 404 page, not a 3D model.<br>Ensure koru.glb is in the SAME FOLDER as index.html.`;
+        });
+
+        class Player {
+            constructor(gltf) {
+                this.model = gltf.scene;
+                this.mixer = new THREE.AnimationMixer(this.model);
+                
+                const idle = THREE.AnimationClip.findByName(gltf.animations, 'Idle');
+                const walk = THREE.AnimationClip.findByName(gltf.animations, 'Sneak Walk');
+                
+                if (idle && walk) {
+                    this.idleAction = this.mixer.clipAction(idle);
+                    this.walkAction = this.mixer.clipAction(walk);
+                    this.idleAction.play();
+                    this.walkAction.play();
+                    this.walkAction.weight = 0;
+                } else {
+                    console.warn("[CORE] // ANIMATIONS NOT FOUND. CHECK MIXAMO NAMES.");
+                }
+            }
+
+            update(dt, isMoving) {
+                this.mixer.update(dt);
+                this.walkAction.weight = THREE.MathUtils.lerp(this.walkAction.weight, isMoving ? 1 : 0, 0.2);
+                this.idleAction.weight = THREE.MathUtils.lerp(this.idleAction.weight, isMoving ? 0 : 1, 0.2);
+            }
+        }
+
+        camera.position.set(0, 2, 5);
+        let moving = false;
+        window.onkeydown = () => moving = true;
+        window.onkeyup = () => moving = false;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(player) player.update(0.016, moving);
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
