@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>KORU // DEPLOYMENT</title>
+    <title>KORU // DEPLOYMENT BUILD</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
     <style>
         body { margin: 0; background: #000; overflow: hidden; color: white; font-family: monospace; }
         #overlay { 
@@ -18,7 +19,7 @@
 <body>
 
     <div id="overlay">
-        <div id="status">INITIALIZING SYSTEM...</div>
+        <div id="status">INITIALIZING DRACO SYSTEM...</div>
     </div>
     <canvas id="game-canvas"></canvas>
 
@@ -34,11 +35,17 @@
         dirLight.position.set(5, 5, 5);
         scene.add(dirLight);
 
-        let player;
-        const loader = new THREE.GLTFLoader();
+        const loadingManager = new THREE.LoadingManager();
+        const loader = new THREE.GLTFLoader(loadingManager);
+        const dracoLoader = new THREE.DRACOLoader();
+        
+        // Use CDN for Draco decoder
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+        loader.setDRACOLoader(dracoLoader);
+
         const modelUrl = './koru.glb';
 
-        console.log("[CORE] // ATTEMPTING ASSET FETCH FROM: " + window.location.href + modelUrl);
+        console.log("[CORE] // ATTEMPTING FETCH: " + modelUrl);
 
         loader.load(modelUrl, (gltf) => {
             console.log("[CORE] // SUCCESS: ASSET LOADED");
@@ -48,12 +55,13 @@
             animate();
         }, (xhr) => {
             const percent = Math.round((xhr.loaded / xhr.total) * 100);
-            statusEl.innerText = `LOADING ASSETS: ${percent}%`;
+            statusEl.innerText = `LOADING ASSETS: ${percent || 0}%`;
         }, (err) => {
             console.error("[CORE] // FAILED TO LOAD GLB:", err);
-            statusEl.innerHTML = `ASSET LOAD ERROR<br><br>Check Browser Console (F12) for details.<br>If you see "Unexpected token <", the file is a 404 page, not a 3D model.<br>Ensure koru.glb is in the SAME FOLDER as index.html.`;
+            statusEl.innerHTML = `ASSET LOAD ERROR<br><br>${err.message}`;
         });
 
+        let player;
         class Player {
             constructor(gltf) {
                 this.model = gltf.scene;
@@ -69,7 +77,7 @@
                     this.walkAction.play();
                     this.walkAction.weight = 0;
                 } else {
-                    console.warn("[CORE] // ANIMATIONS NOT FOUND. CHECK MIXAMO NAMES.");
+                    console.warn("[CORE] // ANIMATIONS NOT FOUND.");
                 }
             }
 
