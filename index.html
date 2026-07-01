@@ -16,8 +16,8 @@
     :root{
         --void:#060907;
         --void-2:#0b120f;
-        --bio:#2dd4c8;
-        --bio-dim:#134842;
+        --bio:#2fd6a8;
+        --bio-dim:#123d34;
         --hive:#8b5cf6;
         --hive-dim:#2f2255;
         --toxic:#84cc16;
@@ -27,7 +27,7 @@
         --ink:#e9f6f2;
         --ink-dim:#9fb3ae;
         --panel:rgba(6,12,11,0.68);
-        --panel-line:rgba(45,212,200,0.35);
+        --panel-line:rgba(47,214,168,0.35);
     }
     *{box-sizing:border-box;}
     body, html{ margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:var(--void); color:var(--ink); font-family:'Rajdhani',sans-serif; }
@@ -41,10 +41,12 @@
         background: radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 100%); }
     #scanlines{ position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0.10;
         background: repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px); }
-    #grain-tint{ position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0.05; mix-blend-mode:overlay;
-        background: linear-gradient(120deg, var(--bio), var(--hive)); }
+    #grain-tint{ position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0.07; mix-blend-mode:overlay;
+        background: linear-gradient(120deg, var(--bio), var(--toxic)); }
+    #haze{ position:absolute; inset:0; z-index:4; pointer-events:none; opacity:0.9;
+        background: radial-gradient(ellipse at 50% 68%, rgba(190,240,80,0.20) 0%, rgba(190,240,80,0.05) 45%, rgba(190,240,80,0) 75%); }
     #dash-flash{ position:absolute; inset:0; z-index:15; pointer-events:none; opacity:0;
-        background: radial-gradient(circle at center, rgba(45,212,200,0.0) 30%, rgba(45,212,200,0.35) 100%);
+        background: radial-gradient(circle at center, rgba(47,214,168,0.0) 30%, rgba(47,214,168,0.35) 100%);
         transition: opacity 0.08s ease-out; }
     #dash-flash.active{ opacity:1; transition: opacity 0.02s linear; }
     #low-health-vig{ position:absolute; inset:0; z-index:16; pointer-events:none; opacity:0;
@@ -52,7 +54,7 @@
         transition: opacity 0.25s ease; }
     #hit-flash{ position:absolute; inset:0; z-index:17; pointer-events:none; opacity:0; background: rgba(239,68,68,0.22); transition: opacity 0.28s ease; }
     #hit-flash.show{ opacity:1; transition: opacity 0.02s linear; }
-    #level-flash{ position:absolute; inset:0; z-index:17; pointer-events:none; opacity:0; background: rgba(45,212,200,0.28); transition: opacity 0.4s ease; }
+    #level-flash{ position:absolute; inset:0; z-index:17; pointer-events:none; opacity:0; background: rgba(47,214,168,0.28); transition: opacity 0.4s ease; }
     #level-flash.show{ opacity:1; transition: opacity 0.02s linear; }
 
     #reticle{ position:absolute; z-index:18; width:34px; height:34px; margin:-17px 0 0 -17px; pointer-events:none; }
@@ -89,18 +91,18 @@
     .hidden{ display:none !important; }
 
     #start-screen, #game-over-screen{ position:absolute; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center;
-        background: radial-gradient(ellipse at 50% 30%, rgba(45,212,200,0.08), rgba(0,0,0,0.92) 70%); pointer-events:auto; }
+        background: radial-gradient(ellipse at 50% 30%, rgba(47,214,168,0.08), rgba(0,0,0,0.92) 70%); pointer-events:auto; }
 
     .btn-primary{ pointer-events:auto; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:0.08em; color:var(--void);
         background:linear-gradient(90deg, var(--bio), #7fe9df); border:none; clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
-        box-shadow:0 0 22px rgba(45,212,200,0.55); transition:transform 0.15s ease, box-shadow 0.15s ease; cursor:pointer; }
-    .btn-primary:hover:not(:disabled){ transform:scale(1.04); box-shadow:0 0 34px rgba(45,212,200,0.85); }
+        box-shadow:0 0 22px rgba(47,214,168,0.55); transition:transform 0.15s ease, box-shadow 0.15s ease; cursor:pointer; }
+    .btn-primary:hover:not(:disabled){ transform:scale(1.04); box-shadow:0 0 34px rgba(47,214,168,0.85); }
     .btn-primary:disabled{ opacity:0.4; cursor:not-allowed; box-shadow:none; }
 
     .char-card{ pointer-events:auto; cursor:pointer; background:var(--panel); border:1px solid rgba(255,255,255,0.15); padding:14px 18px; text-align:left; width:220px;
         clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px); transition:border-color 0.2s, box-shadow 0.2s, transform 0.15s; }
     .char-card:hover:not(:disabled){ transform:translateY(-2px); }
-    .char-card.selected{ border-color:var(--bio); box-shadow:0 0 20px rgba(45,212,200,0.45); }
+    .char-card.selected{ border-color:var(--bio); box-shadow:0 0 20px rgba(47,214,168,0.45); }
     .char-card:disabled{ opacity:0.45; cursor:not-allowed; }
     .char-card .ctitle{ font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.08em; color:var(--bio); font-weight:700; }
     .char-card .csub{ font-size:12px; color:var(--ink-dim); margin-top:4px; }
@@ -108,13 +110,14 @@
     .term-blink::after{ content:'_'; animation: blink 1s step-end infinite; color:var(--bio); }
     @keyframes blink{ 50%{ opacity:0; } }
 
-    .title-glow{ text-shadow: 0 0 20px rgba(45,212,200,0.65), 0 0 60px rgba(45,212,200,0.35); }
+    .title-glow{ text-shadow: 0 0 20px rgba(47,214,168,0.65), 0 0 60px rgba(47,214,168,0.35); }
 </style>
 </head>
 <body>
 
 <canvas id="game-canvas"></canvas>
 <div id="vignette"></div>
+<div id="haze"></div>
 <div id="scanlines"></div>
 <div id="grain-tint"></div>
 <div id="dash-flash"></div>
@@ -274,9 +277,9 @@ let loadedGLB = null;
 let loadedAnimations = [];
 
 const LEVELS = [
-    { id: 1, name: "I: THE SURFACE", objective: "Scout & Destroy", aiScaling: 0.3, requiredKills: 10, timeLimit: -1, fogColor: 0x8b3a3a, groundColor: 0x2a1a1a },
-    { id: 2, name: "II: HIVE INFILTRATION", objective: "Extract Nodes", aiScaling: 0.6, requiredKills: 25, timeLimit: 60, fogColor: 0x4a148c, groundColor: 0x1a0a2a },
-    { id: 3, name: "III: ZYXAR'S CORE", objective: "Boss Defeat", aiScaling: 0.9, requiredKills: 1, isBoss: true, timeLimit: 90, fogColor: 0x004d40, groundColor: 0x001a1a }
+    { id: 1, name: "I: THE SURFACE", objective: "Scout & Destroy", aiScaling: 0.3, requiredKills: 10, timeLimit: -1, fogColor: 0x3f6b45, groundColor: 0x152417 },
+    { id: 2, name: "II: HIVE INFILTRATION", objective: "Extract Nodes", aiScaling: 0.6, requiredKills: 25, timeLimit: 60, fogColor: 0x1f4a44, groundColor: 0x0d1f1c },
+    { id: 3, name: "III: ZYXAR'S CORE", objective: "Boss Defeat", aiScaling: 0.9, requiredKills: 1, isBoss: true, timeLimit: 90, fogColor: 0x0a3d33, groundColor: 0x041a15 }
 ];
 let levelKills = 0;
 
@@ -318,17 +321,17 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(LEVELS[0].fogColor);
-scene.fog = new THREE.FogExp2(LEVELS[0].fogColor, 0.014);
+scene.fog = new THREE.FogExp2(LEVELS[0].fogColor, 0.017);
 
 const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 1000);
 const cameraOffset = new THREE.Vector3(0, 30, 40);
 camera.position.copy(cameraOffset);
 
 // Balanced lighting (fixes the previous blown-out / murky look)
-const ambientLight = new THREE.AmbientLight(0xbfd8d4, 0.5);
+const ambientLight = new THREE.AmbientLight(0xcfe8cc, 0.5);
 scene.add(ambientLight);
 
-const hemiLight = new THREE.HemisphereLight(0x9fd8cf, 0x2a1f33, 0.65);
+const hemiLight = new THREE.HemisphereLight(0xaee6b8, 0x142b1e, 0.65);
 hemiLight.position.set(0, 100, 0);
 scene.add(hemiLight);
 
@@ -345,7 +348,7 @@ dirLight.shadow.camera.top = 50;
 dirLight.shadow.camera.bottom = -50;
 scene.add(dirLight);
 
-const rimLight = new THREE.PointLight(0x2dd4c8, 0.8, 60);
+const rimLight = new THREE.PointLight(0x2fd6a8, 0.8, 60);
 rimLight.position.set(0, 15, 0);
 scene.add(rimLight);
 
@@ -358,11 +361,139 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // subtle grid overlay for spatial readability
-const grid = new THREE.GridHelper(200, 40, 0x2dd4c8, 0x2dd4c8);
+const grid = new THREE.GridHelper(200, 40, 0x2fd6a8, 0x2fd6a8);
 grid.material.transparent = true;
 grid.material.opacity = 0.05;
 grid.position.y = 0.02;
 scene.add(grid);
+
+// ============================= PROCEDURAL JUNGLE VEGETATION =============================
+// Trees and shrubs double as both scenery and gameplay obstacles: trees block
+// movement AND projectiles (tactical cover), shrubs only block movement (low
+// profile, easy to shoot over).
+const obstacles = []; // { x, z, radius, blocksProjectiles }
+
+const CANOPY_COLORS = [0x1f5c3d, 0x2b6e46, 0x14432c, 0x3a7d4f, 0x0f3d28];
+const SHRUB_COLORS = [0x2f7a4f, 0x4c9a54, 0x1f5c3d, 0x6fae3a];
+const BARK_COLOR = 0x2a2015;
+
+function makeTree(scale) {
+    const group = new THREE.Group();
+    const trunkH = (3.5 + Math.random() * 2.5) * scale;
+    const trunkGeo = new THREE.CylinderGeometry(0.28 * scale, 0.5 * scale, trunkH, 6);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: BARK_COLOR, roughness: 0.95, metalness: 0.05 });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.y = trunkH / 2;
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    group.add(trunk);
+
+    const clusterCount = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < clusterCount; i++) {
+        const cGeo = new THREE.IcosahedronGeometry((1.3 + Math.random() * 1.0) * scale, 0);
+        const cMat = new THREE.MeshStandardMaterial({
+            color: CANOPY_COLORS[Math.floor(Math.random() * CANOPY_COLORS.length)],
+            roughness: 0.85, flatShading: true
+        });
+        const c = new THREE.Mesh(cGeo, cMat);
+        c.position.set(
+            (Math.random() - 0.5) * 1.8 * scale,
+            trunkH * 0.72 + Math.random() * 1.6 * scale,
+            (Math.random() - 0.5) * 1.8 * scale
+        );
+        c.receiveShadow = true;
+        group.add(c);
+    }
+    group.rotation.y = Math.random() * Math.PI * 2;
+    group.userData.trunkRadius = 0.55 * scale;
+    return group;
+}
+
+function makeShrub(scale) {
+    const group = new THREE.Group();
+    const blobCount = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < blobCount; i++) {
+        const geo = new THREE.IcosahedronGeometry((0.55 + Math.random() * 0.45) * scale, 0);
+        const mat = new THREE.MeshStandardMaterial({
+            color: SHRUB_COLORS[Math.floor(Math.random() * SHRUB_COLORS.length)],
+            roughness: 0.9, flatShading: true
+        });
+        const m = new THREE.Mesh(geo, mat);
+        m.position.set(
+            (Math.random() - 0.5) * 1.1 * scale,
+            0.35 * scale + Math.random() * 0.35 * scale,
+            (Math.random() - 0.5) * 1.1 * scale
+        );
+        m.receiveShadow = true;
+        group.add(m);
+    }
+    group.rotation.y = Math.random() * Math.PI * 2;
+    return group;
+}
+
+function scatterVegetation() {
+    const placed = [];
+    function tryPlace(minR, maxR, minDist) {
+        for (let attempt = 0; attempt < 25; attempt++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = minR + Math.random() * (maxR - minR);
+            const x = Math.cos(angle) * r;
+            const z = Math.sin(angle) * r;
+            let ok = true;
+            for (let i = 0; i < placed.length; i++) {
+                const p = placed[i];
+                const dx = p.x - x, dz = p.z - z;
+                if (dx * dx + dz * dz < minDist * minDist) { ok = false; break; }
+            }
+            if (ok) return { x, z };
+        }
+        return null;
+    }
+
+    const TREE_COUNT = 60;
+    const SHRUB_COUNT = 80;
+
+    for (let i = 0; i < TREE_COUNT; i++) {
+        const pos = tryPlace(16, 92, 6.5);
+        if (!pos) continue;
+        const scale = 0.85 + Math.random() * 0.65;
+        const tree = makeTree(scale);
+        tree.position.set(pos.x, 0, pos.z);
+        scene.add(tree);
+        obstacles.push({ x: pos.x, z: pos.z, radius: 0.95 * scale, blocksProjectiles: true });
+        placed.push(pos);
+    }
+
+    for (let i = 0; i < SHRUB_COUNT; i++) {
+        const pos = tryPlace(9, 94, 3.5);
+        if (!pos) continue;
+        const scale = 0.7 + Math.random() * 0.8;
+        const shrub = makeShrub(scale);
+        shrub.position.set(pos.x, 0, pos.z);
+        scene.add(shrub);
+        obstacles.push({ x: pos.x, z: pos.z, radius: 0.7 * scale, blocksProjectiles: false });
+        placed.push(pos);
+    }
+}
+scatterVegetation();
+
+// Pushes an entity (anything with a THREE.Vector3 `.position` and a `.radius`)
+// out of any obstacle it has walked into. Movement-blocking only.
+function resolveObstacleCollisions(entity) {
+    for (let i = 0; i < obstacles.length; i++) {
+        const o = obstacles[i];
+        const dx = entity.position.x - o.x;
+        const dz = entity.position.z - o.z;
+        const distSq = dx * dx + dz * dz;
+        const minDist = o.radius + entity.radius;
+        if (distSq < minDist * minDist && distSq > 0.0001) {
+            const dist = Math.sqrt(distSq);
+            const push = (minDist - dist);
+            entity.position.x += (dx / dist) * push;
+            entity.position.z += (dz / dist) * push;
+        }
+    }
+}
 
 // --- GLTF LOADER (Option 2) ---
 const gltfLoader = new THREE.GLTFLoader();
@@ -541,7 +672,7 @@ class Pool {
 
 // ============================= PARTICLES & PROJECTILES =============================
 const particleGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-const particleMat = new THREE.MeshBasicMaterial({ color: 0x2dd4c8, transparent: true });
+const particleMat = new THREE.MeshBasicMaterial({ color: 0x2fd6a8, transparent: true });
 function createParticle() {
     const mesh = new THREE.Mesh(particleGeo, particleMat.clone());
     mesh.visible = false;
@@ -572,7 +703,7 @@ function emitParticles(pos, colorHex, count, speed, type = 'dust') {
 }
 
 const projGeo = new THREE.SphereGeometry(0.4, 8, 8);
-const projMatPlayer = new THREE.MeshBasicMaterial({ color: 0x2dd4c8 });
+const projMatPlayer = new THREE.MeshBasicMaterial({ color: 0x2fd6a8 });
 const projMatEnemy = new THREE.MeshBasicMaterial({ color: 0xef4444 });
 function createProjectile() {
     const mesh = new THREE.Mesh(projGeo, projMatPlayer);
@@ -631,7 +762,7 @@ class Player {
             this.group.add(this.torso);
 
             const streakGeo = new THREE.BoxGeometry(2.1, 0.2, 1.6);
-            const glowMat = new THREE.MeshBasicMaterial({ color: 0x2dd4c8 });
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0x2fd6a8 });
             const streak = new THREE.Mesh(streakGeo, glowMat);
             streak.position.y = 0.5;
             this.torso.add(streak);
@@ -729,7 +860,7 @@ class Player {
         if (keys.space && this.isGrounded) {
             this.velocity.y = 15;
             this.isGrounded = false;
-            if (keys.w) emitParticles(this.position, 0x2dd4c8, 15, 10, 'exhaust');
+            if (keys.w) emitParticles(this.position, 0x2fd6a8, 15, 10, 'exhaust');
         }
 
         if (keys.shift && keys.w && this.dashCooldown <= 0 && this.neural >= 30 && !this.isDashing) {
@@ -745,7 +876,7 @@ class Player {
 
             triggerDashFX();
             addShake(0.15, 0.15);
-            emitParticles(this.position, 0x2dd4c8, 30, 20);
+            emitParticles(this.position, 0x2fd6a8, 30, 20);
         }
 
         if (!this.isDashing) {
@@ -766,6 +897,8 @@ class Player {
         if (this.position.x < -bound) this.position.x = -bound;
         if (this.position.z > bound) this.position.z = bound;
         if (this.position.z < -bound) this.position.z = -bound;
+
+        resolveObstacleCollisions(this);
 
         if (this.dashCooldown > 0) this.dashCooldown -= dt;
         if (this.shootCooldown > 0) this.shootCooldown -= dt;
@@ -878,6 +1011,7 @@ class Enemy {
     spawn(pos, levelData) {
         this.position.copy(pos);
         this.position.y = 0;
+        if (!levelData.isBoss) resolveObstacleCollisions(this);
         this.active = true;
         this.health = levelData.isBoss ? 500 : 30 * (1 + levelData.aiScaling);
         this.maxHealth = this.health;
@@ -923,6 +1057,7 @@ class Enemy {
             if (dir.lengthSq() > 0) {
                 dir.normalize();
                 this.position.addScaledVector(dir, this.speed * dt);
+                if (!this.isBoss) resolveObstacleCollisions(this);
                 this.mesh.position.y = 1.0 + Math.sin(Date.now() * 0.005 + this.id) * 0.5;
                 this.mesh.rotation.y += dt;
             }
@@ -1155,6 +1290,22 @@ function gameLoop(time) {
             continue;
         }
 
+        let blockedByFoliage = false;
+        for (let k = 0; k < obstacles.length; k++) {
+            const o = obstacles[k];
+            if (!o.blocksProjectiles) continue;
+            const dx = proj.mesh.position.x - o.x;
+            const dz = proj.mesh.position.z - o.z;
+            const rSum = o.radius + proj.radius;
+            if (dx * dx + dz * dz < rSum * rSum) { blockedByFoliage = true; break; }
+        }
+        if (blockedByFoliage) {
+            emitParticles(proj.mesh.position, 0x6b4a2f, 6, 8);
+            proj.active = false;
+            proj.mesh.visible = false;
+            continue;
+        }
+
         if (proj.isPlayer) {
             for (let j = 0; j < activeEnemies.length; j++) {
                 const enemy = activeEnemies[j];
@@ -1162,7 +1313,7 @@ function gameLoop(time) {
                     enemy.takeDamage(10);
                     proj.active = false;
                     proj.mesh.visible = false;
-                    emitParticles(proj.mesh.position, 0x2dd4c8, 6, 10);
+                    emitParticles(proj.mesh.position, 0x2fd6a8, 6, 10);
                     break;
                 }
             }
