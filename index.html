@@ -510,14 +510,12 @@
 
                 // GLB Animation Switching (Idle vs Walk)
                 if (this.mixer) {
-                    if ((isMoving || this.isDashing) && this.currentAnim !== this.animWalk) {
-                        this.animWalk.reset().fadeIn(0.2).play();
-                        if (this.animIdle) this.animIdle.fadeOut(0.2);
-                        this.currentAnim = this.animWalk;
-                    } else if (!isMoving && !this.isDashing && this.currentAnim !== this.animIdle) {
-                        this.animIdle.reset().fadeIn(0.2).play();
-                        if (this.animWalk) this.animWalk.fadeOut(0.2);
-                        this.currentAnim = this.animIdle;
+                    const targetAnim = (isMoving || this.isDashing) ? this.animWalk : this.animIdle;
+                    
+                    if (this.currentAnim !== targetAnim) {
+                        targetAnim.reset().fadeIn(0.2).play();
+                        if (this.currentAnim) this.currentAnim.fadeOut(0.2);
+                        this.currentAnim = targetAnim;
                     }
                 }
 
